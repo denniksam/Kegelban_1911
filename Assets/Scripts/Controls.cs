@@ -1,5 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Xml.Serialization;
 using UnityEngine;
 using UnityEngine.UI;   // Text, Image, Button
 
@@ -7,6 +9,7 @@ public class Controls : MonoBehaviour
 {
     private const float MIN_FORCE = 1000f;
     private const float MAX_FORCE = 2000f;
+    private const string BEST_RES_FILE = "best.xml";
 
     private GameObject Ball;
     private Rigidbody ballRigidbody;
@@ -25,9 +28,12 @@ public class Controls : MonoBehaviour
 
     private GameObject GameMenu;
 
+    private List<GameResult> bestResults;  // таблица рекордов
 
     void Start()
     {
+        LoadBestResults();
+
         GameMenu = GameObject.Find("Menu");
         Menu.MenuMode = MenuMode.Start;
 
@@ -176,5 +182,93 @@ public class Controls : MonoBehaviour
         // Debug.Log("Click");
         GameMenu.SetActive(false);
         Menu.IsActive = false;
+
+    }
+
+    // Задание: по нажатию на кнопку "В" отображать таблицу рекордов и
+    // ставить игру на паузу (останавливать таймер). НО! не во время
+    // движения шара. (на экране - создать доп. холст - Canvas)
+    // + сортировать результаты: чем меньше шаров, тем лучше.
+    //   если одинаково - чем меньше времени
+
+    /**
+     * Считываем таблицу лучших результатов.
+     * Если ее нет - создаем тестовую
+     */
+    private void LoadBestResults()
+    {
+        // файл с результатами - обявлен в константах
+        if (File.Exists(BEST_RES_FILE))
+        {
+            using (StreamReader reader = new StreamReader(BEST_RES_FILE))
+            {
+                XmlSerializer serializer = new XmlSerializer(
+                    typeof(List<GameResult>));
+                bestResults = (List<GameResult>)
+                    serializer.Deserialize(reader);
+            }
+            bestResults.Sort();
+            foreach(var res in bestResults)
+            {
+                Debug.Log(res);
+            }
+        }
+        else
+        {
+            // файла нет - создаем тестовый 
+            bestResults = new List<GameResult>();
+            bestResults.Add(new GameResult { Balls = 20, Time = 200 });
+            bestResults.Add(new GameResult { Balls = 30, Time = 300 });
+            bestResults.Add(new GameResult { Balls = 10, Time = 100 });
+            
+            using(StreamWriter writer = new StreamWriter(BEST_RES_FILE))
+            {
+                XmlSerializer serializer = new XmlSerializer(
+                    bestResults.GetType());
+                serializer.Serialize(writer, bestResults);
+            }
+        }
     }
 }
+/*
+ * Работа с сохранением - сериализация.
+ * Сериализация - механизм представления обекта (параллельной формі) в виде
+ * последовательности (серии), обічно, для сохранения в файле или
+ * для передачи по сети.
+ * Сохранение - віделение числовіх (не-ссілочніх) характеристик,
+ * которіе могут біть сохранені и позже восставновленні.
+ */
+public class GameResult: System.IComparable<GameResult>
+{
+    public int Balls { get; set; }   // бросков
+    public float Time { get; set; }  // время раунда
+
+
+    public int CompareTo(GameResult y)
+    {
+        if (this.Balls < y.Balls) return -1;
+        else if (this.Balls == y.Balls)
+        {
+            if (this.Time < y.Time) return -1;
+            else if (this.Time == y.Time) return 0;
+        }
+        return 1;
+    }
+
+    public override string ToString()
+    {
+        return "Balls: " + Balls + ", Time: " + Time; 
+    }
+}
+
+
+/*
+ * Git:
+ * git init - инициализировать локальн. репозиторий
+ * git remote add origin http... - указать удаленку
+ * git add . - добавить всю текущую директорию
+ * git commit -m "commit message"  - создать "точку"-версию
+ *   генерируем токен (github - settins - developer - personal access tokens)
+ *   сохраняем на ПК, через гит его повторно посмотреть нельзя
+ * git push --all
+ */
